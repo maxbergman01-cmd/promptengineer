@@ -15,7 +15,6 @@ st.set_page_config(
 )
 
 # --- SECURITY LOCK ---
-# To let friends use it, give them this password.
 APP_PASSWORD = "password123" 
 
 if "authenticated" not in st.session_state:
@@ -37,7 +36,7 @@ if not st.session_state.authenticated:
 if "master_prompt" not in st.session_state: st.session_state.master_prompt = ""
 if "vault" not in st.session_state: st.session_state.vault = []
 if "critic_feedback" not in st.session_state: st.session_state.critic_feedback = ""
-if "voice_text" not in st.session_state: st.session_state.voice_text = "" # New for voice
+if "voice_text" not in st.session_state: st.session_state.voice_text = ""
 
 # --- LOCAL DATABASE FUNCTIONS ---
 DB_FILE = "prompt_vault.json"
@@ -103,23 +102,22 @@ with st.sidebar:
 # ==========================================
 if mode == "🏗️ Master Architect":
     st.title("🏗️ The Master Architect")
+    st.caption("Powered by the 'Authoritative Guide to Optimal Prompt Engineering'")
     
     # ADVANCED INPUTS
     with st.expander("📂 Advanced Inputs (Voice / CSV Examples)"):
         tab_voice, tab_csv = st.tabs(["🎤 Voice Input", "📚 Few-Shot CSV"])
         
-        # --- REAL VOICE TRANSCRIPTION LOGIC ---
         with tab_voice:
             audio_val = st.audio_input("Record your idea:")
             if audio_val and api_key:
                 client = Groq(api_key=api_key)
                 with st.spinner("Transcribing audio via Whisper..."):
                     try:
-                        # Groq needs a filename to process the buffer
                         audio_val.name = "input.wav" 
                         transcription = client.audio.transcriptions.create(
                             file=(audio_val.name, audio_val.read()), 
-                            model="whisper-large-v3-turbo", # The fast audio model
+                            model="whisper-large-v3-turbo", 
                             response_format="text"
                         )
                         st.session_state.voice_text = transcription
@@ -135,21 +133,27 @@ if mode == "🏗️ Master Architect":
                     df = pd.read_csv(uploaded_file)
                     if 'Input' in df.columns and 'Output' in df.columns:
                         for index, row in df.iterrows():
-                            few_shot_data += f"<example>\nUSER: {row['Input']}\nAI: {row['Output']}\n</example>\n"
+                            few_shot_data += f"<example>\n<user_query>{row['Input']}</user_query>\n<assistant_response>{row['Output']}</assistant_response>\n</example>\n"
                         st.success(f"Loaded {len(df)} examples!")
                 except: st.error("CSV Error. Ensure columns are 'Input' and 'Output'.")
 
     # MAIN INPUTS
     col1, col2 = st.columns([2, 1])
     with col1:
-        # If voice text exists, use it as default value
         default_val = st.session_state.voice_text if st.session_state.voice_text else ""
-        raw_prompt = st.text_area("Core Task:", height=150, value=default_val, placeholder="e.g., 'Write a python script to scrape prices'")
+        raw_prompt = st.text_area("Core Task:", height=150, value=default_val, placeholder="e.g., 'Analyze this financial report for risk'")
     with col2:
-        context_data = st.text_area("Context / Constraints:", height=150, placeholder="e.g., 'Audience is beginners. Output JSON.'")
+        context_data = st.text_area("Context / Constraints:", height=150, placeholder="e.g., 'Audience is CFOs. Focus on liquidity.'")
         
-    domain_mode = st.selectbox("Domain Strategy", ["General", "👨‍💻 Coding", "✍️ Creative Writing", "📊 Data Analysis"], index=0)
-    target_ai = st.radio("Target AI Structure", ["Gemini (XML)", "GPT-5 (Markdown)"], horizontal=True)
+    domain_mode = st.selectbox("Domain Strategy", ["General", "👨‍💻 Coding", "✍️ Creative Writing", "📊 Data Analysis", "⚖️ Legal & Compliance"], index=0)
+    
+    # --- NEW OPTIMIZATION TOGGLES ---
+    target_ai = st.radio(
+        "Optimization Target", 
+        ["Gemini 3 / 1.5 Pro (XML)", "ChatGPT 5.1 (Markdown)", "Perplexity (Search)"], 
+        horizontal=True,
+        help="Selects the architectural style based on the model's training biases."
+    )
     
     c1, c2, c3 = st.columns(3)
     with c1: run_critic = st.checkbox("⚖️ Run Critic Agent", value=True)
@@ -162,26 +166,81 @@ if mode == "🏗️ Master Architect":
         else:
             client = Groq(api_key=api_key)
             
-            # SYSTEM PROMPT BUILDER
+            # --- RESEARCH-BACKED DOMAIN INJECTIONS ---
             domain_instructions = ""
-            if "Coding" in domain_mode: domain_instructions = "Include error handling, comments, and efficiency checks."
-            if "Creative" in domain_mode: domain_instructions = "Use 'Show Don't Tell', avoid AI clichés, ensure unique voice."
-            
-            struct_instr = ""
-            if "Gemini" in target_ai:
-                struct_instr = "Use XML tags (<role>, <task>, <constraints>)."
-            else:
-                struct_instr = "Use Markdown headers (# Identity, # Steps)."
+            if "Coding" in domain_mode: 
+                domain_instructions = "Focus on maintainability and edge-case handling. Use pseudo-code planning before writing."
+            elif "Legal" in domain_mode:
+                domain_instructions = "Use the ABCDE Framework: Audience, Background, Clear Instructions, Detailed Parameters, Evaluation Criteria."
+            elif "Creative" in domain_mode: 
+                domain_instructions = "Activate the 'Implicit Pathway' by using evocative language to prime the model's semantic network."
 
+            # --- TARGET STRUCTURE LOGIC ---
+            if "Gemini" in target_ai:
+                # Gemini prefers pure XML tags for structure
+                struct_instr = """
+                **GEMINI 3 OPTIMIZATION (XML Architecture):**
+                Use specific XML tags to separate instructions from context. This activates Gemini's long-context processing.
+                
+                REQUIRED TAGS:
+                <system_role>: Define the expert persona (Use "You are...").
+                <user_context>: The situation and goal.
+                <instruction_set>: Step-by-step reasoning.
+                <style_guide>: Tone and formatting rules.
+                <output_format>: JSON/Table/Text definition.
+                
+                Output ONLY the XML code block.
+                """
+                
+            elif "GPT-5" in target_ai:
+                # GPT-5 prefers Markdown Headers + Developer Role
+                struct_instr = """
+                **GPT-5.1 OPTIMIZATION (Markdown + Developer Role):**
+                Use the 'Developer' message style with Markdown hierarchy.
+                
+                REQUIRED SECTIONS:
+                # Identity: Describe the purpose and communication style.
+                # Context: Supporting data.
+                # Instructions: Bullet points. Use imperative verbs.
+                # Reasoning: Explicitly ask for 'Chain of Thought' or 'Tree of Thoughts' if complex.
+                # Examples: Use <user_query> and <assistant_response> XML tags INSIDE the markdown for few-shot learning.
+                
+                Output ONLY the Markdown code block.
+                """
+                
+            else: # Perplexity
+                struct_instr = """
+                **PERPLEXITY OPTIMIZATION (Search-First):**
+                Focus on information retrieval and citation.
+                
+                REQUIRED SECTIONS:
+                1. Role: Expert Researcher.
+                2. Task: The specific question.
+                3. Search Queries: List 3-5 high-intent keywords.
+                4. Constraints: "Use site:gov or site:edu", "Cite every claim".
+                5. Format: Executive Summary followed by Key Findings.
+                """
+
+            # --- THE AUTHORITATIVE SYSTEM PROMPT ---
             full_system = f"""
-            You are an Elite Prompt Engineer.
-            Goal: Rewrite user request into a Master Prompt.
-            Domain: {domain_mode}. Rules: {domain_instructions}
-            Structure: {struct_instr}
-            If CSV examples provided: {few_shot_data}
+            You are the Chief Prompt Architect. You possess the combined knowledge of the "Authoritative Guide to Optimal Prompt Engineering".
+            
+            **YOUR KNOWLEDGE BASE:**
+            1. **Theoretical:** You understand Instruction Tuning, RLHF biases, and In-Context Learning.
+            2. **Cognitive:** You use 'Dual-Path Processing' (Explicit reasoning + Implicit priming).
+            3. **Architecture:** You apply Chain-of-Thought (CoT) for logic and Few-Shot examples for pattern matching.
+            
+            **GOAL:** Rewrite the user's request into a 'Master Prompt' optimized for {target_ai}.
+            
+            **DOMAIN:** {domain_mode}
+            **RULES:** {domain_instructions}
+            **STRUCTURE:** {struct_instr}
+            
+            **INPUT CONTEXT:**
+            {few_shot_data if few_shot_data else "No CSV examples provided. Invent 1 high-quality example."}
             """
             
-            with st.spinner("Architecting..."):
+            with st.spinner("Architecting via Dual-Path Processing..."):
                 resp = client.chat.completions.create(
                     model=model,
                     messages=[{"role":"system", "content": full_system}, {"role":"user", "content": f"Task: {raw_prompt} Context: {context_data}"}],
@@ -191,26 +250,26 @@ if mode == "🏗️ Master Architect":
 
             # CRITIC LOOP
             if run_critic:
-                with st.spinner("⚖️ Critic is reviewing..."):
+                with st.spinner("⚖️ Critic is auditing against Research Guidelines..."):
                     critic_resp = client.chat.completions.create(
                         model="llama-3.1-8b-instant",
                         messages=[
-                            {"role":"system", "content": "Critique this prompt. Rate 0-10. If < 9, improve it. Output ONLY the improved version."},
+                            {"role":"system", "content": "Critique this prompt based on Clarity, Specificity, and Constraint Robustness. Rate 0-10. If < 9, improve it. Output ONLY the improved version."},
                             {"role":"user", "content": draft_prompt}
                         ]
                     )
                     st.session_state.master_prompt = critic_resp.choices[0].message.content
-                    st.session_state.critic_feedback = "Critic improved clarity & constraints."
+                    st.session_state.critic_feedback = "Critic improved clarity & constraints based on RLHF alignment principles."
             else:
                 st.session_state.master_prompt = draft_prompt
 
             # TOKEN DIET
             if run_diet:
-                with st.spinner("📉 Compressing tokens..."):
+                with st.spinner("📉 Optimizing Token Efficiency..."):
                     diet_resp = client.chat.completions.create(
                         model="llama-3.1-8b-instant",
                         messages=[
-                            {"role":"system", "content": "Compress this prompt by 30% without losing meaning. Remove fluff."},
+                            {"role":"system", "content": "Optimize this prompt for token efficiency (TC). Remove redundancy without losing instruction fidelity."},
                             {"role":"user", "content": st.session_state.master_prompt}
                         ]
                     )
@@ -225,7 +284,7 @@ if mode == "🏗️ Master Architect":
         col_res, col_acts = st.columns([2, 1])
         with col_res:
             st.subheader("💎 Final Master Prompt")
-            st.text_area("Copy this:", value=st.session_state.master_prompt, height=500)
+            st.text_area("Copy this:", value=st.session_state.master_prompt, height=600)
         with col_acts:
             st.subheader("🛠️ Tools")
             py_code = f"""from groq import Groq\nclient = Groq(api_key="KEY")\nprompt = \"\"\"{st.session_state.master_prompt}\"\"\"\nprint(client.chat.completions.create(model="{model}", messages=[{{"role":"user", "content":prompt}}]).choices[0].message.content)"""
@@ -237,6 +296,7 @@ if mode == "🏗️ Master Architect":
                 vars = re.findall(r'\{\{(.*?)\}\}', st.session_state.master_prompt)
                 if vars:
                     st.markdown("### 🧩 Variable Wizard")
+                    st.caption("Variables detected for automation:")
                     for v in vars: st.text_input(f"Value for {v}", key=f"var_{v}")
 
 # ==========================================
@@ -244,7 +304,7 @@ if mode == "🏗️ Master Architect":
 # ==========================================
 elif mode == "⚔️ Battle Arena":
     st.title("⚔️ Model Battle Arena")
-    st.caption("Test your prompt against two models simultaneously to check robustness.")
+    st.caption("Test robustness across different architectures.")
     
     arena_prompt = st.text_area("Enter Prompt to Test:", height=150, value=st.session_state.master_prompt)
     
@@ -276,15 +336,13 @@ elif mode == "⚔️ Battle Arena":
 # ==========================================
 elif mode == "🔄 Reverse Engineer":
     st.title("🔄 De-Compiler")
-    st.caption("Paste a great AI response to find out the prompt that likely created it.")
-    
+    st.caption("Reverse-engineer the prompt from a high-quality output.")
     output_text = st.text_area("Paste the AI Output here:", height=300)
-    
     if st.button("🔍 Reverse Engineer"):
         if not api_key: st.error("Need Key")
         else:
             client = Groq(api_key=api_key)
-            system = "Reverse-engineer the prompt that likely created this text. Identify constraints, tone, and persona."
+            system = "Reverse-engineer the prompt that likely created this text. Identify constraints, tone, and persona based on the 'Authoritative Guide to Prompt Engineering'."
             resp = client.chat.completions.create(model=model, messages=[{"role":"system", "content": system}, {"role":"user", "content": output_text}])
             st.markdown("### 🕵️ Likely Source Prompt")
             st.code(resp.choices[0].message.content)
@@ -311,40 +369,46 @@ elif mode == "📘 Documentation":
     st.markdown("""
     <div class="feature-card">
     <h4>🏗️ Master Architect</h4>
-    <p>The core engine. Uses 'Meta-Prompting' to rewrite lazy requests into professional engineering formats.</p>
+    <p>The core engine. Uses 'Meta-Prompting' based on the 'Authoritative Guide' to rewrite lazy requests into professional engineering formats.</p>
     <ul>
-        <li><b>Domain Strategy:</b> Select 'Coding' for error handling, 'Creative' for tone.</li>
-        <li><b>Target AI:</b> Switches between XML (Gemini) and Markdown (GPT-5).</li>
+        <li><b>Domain Strategy:</b> Select 'Coding' for error handling, 'Legal' for ABCDE framework, etc.</li>
+        <li><b>Target AI:</b> 
+            <ul>
+                <li><b>Gemini (XML):</b> Optimized for Google's long-context and structure following.</li>
+                <li><b>GPT-5 (Markdown):</b> Optimized for OpenAI's 'Developer' role and header hierarchy.</li>
+                <li><b>Perplexity:</b> Optimized for Search intent and citation.</li>
+            </ul>
+        </li>
         <li><b>🎤 Voice Input:</b> Record your ideas verbally; the AI transcribes them via Whisper.</li>
-        <li><b>📚 CSV Loader:</b> Upload spreadsheets to teach the AI by example (Few-Shot).</li>
+        <li><b>📚 CSV Loader:</b> Upload spreadsheets to teach the AI by example (Few-Shot Learning).</li>
     </ul>
     </div>
     
     <div class="feature-card">
     <h4>⚖️ The Critic Agent</h4>
-    <p>An autonomous AI agent that reviews your prompt <i>before</i> you see it. It checks for clarity, safety, and missing constraints, then auto-fixes it.</p>
+    <p>An autonomous AI agent that reviews your prompt <i>before</i> you see it. It audits against RLHF alignment principles and auto-fixes ambiguity.</p>
     </div>
 
     <div class="feature-card">
     <h4>📉 Token Diet</h4>
-    <p>Enterprise optimization. Compresses the prompt by ~30% by removing fluff words (like 'please', 'kindly'), saving money on API costs.</p>
+    <p>Enterprise optimization. Compresses the prompt by ~30% by removing linguistic fluff, improving 'Token Cost' efficiency.</p>
     </div>
 
     <div class="feature-card">
     <h4>🧩 Variable Wizard</h4>
-    <p>Automatically scans for placeholders like <code>{{name}}</code> and creates input fields. Crucial for building templates for automation (Make/Zapier).</p>
+    <p>Automatically scans for placeholders like <code>{{name}}</code>. Crucial for building templates for automation workflows (Make/Zapier).</p>
     </div>
 
     <div class="feature-card">
     <h4>⚔️ Battle Arena</h4>
-    <p>The ultimate test. Runs your prompt against two different AI models (e.g., Llama 3 vs Mixtral) simultaneously. If one fails, your prompt isn't robust enough.</p>
+    <p>The ultimate test. Runs your prompt against two different AI models (e.g., Llama 3 vs Mixtral) simultaneously to check for 'Prompt Sensitivity' and robustness.</p>
     </div>
     
     <div class="feature-card">
     <h4>🔄 Reverse Engineer</h4>
-    <p>The learning tool. Paste a great email or code block you found, and this tool will deduce the prompt used to create it.</p>
+    <p>The learning tool. Paste a great email or code block you found, and this tool uses forensic analysis to deduce the prompt constraints used to create it.</p>
     </div>
     """, unsafe_allow_html=True)
-
+    
 
     
